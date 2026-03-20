@@ -1,0 +1,91 @@
+# -------------------------------
+# Python
+# -------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pyc
+*.so
+
+# -------------------------------
+# Virtual environments
+# -------------------------------
+venv/
+env/
+.venv/
+ENV/
+.ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# -------------------------------
+# Jupyter Notebook
+# -------------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -------------------------------
+# PyTorch / TensorFlow / ML
+# -------------------------------
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.tflite
+*.onnx
+*.pb
+*.weights
+
+# Logs, TensorBoard
+logs/
+tb_logs/
+events.out.tfevents.*
+
+# -------------------------------
+# YOLO / ultralytics
+# -------------------------------
+runs/
+results/
+weights/
+*.yaml  # Nếu chứa config nhạy cảm
+*.txt   # nếu chứa list paths lớn hoặc annotations tạm
+
+# -------------------------------
+# Datasets / large files
+# -------------------------------
+data/
+dataset/
+*.csv
+*.json
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.pickle
+*.pkl
+*.npz
+*.npy
+*.hdf5
+*.db
+
+# -------------------------------
+# OS / editor files
+# -------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# -------------------------------
+# Misc
+# -------------------------------
+*.log
+*.tmp
+*.bak
