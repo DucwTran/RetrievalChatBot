@@ -1,94 +1,50 @@
-# -------------------------------
-# Python
-# -------------------------------
+# ===== Environment =====
+.env
+.env.local
+
+# ===== Python =====
 __pycache__/
 *.py[cod]
-*$py.class
 *.pyo
 *.pyd
-*.pyc
 *.so
+.Python
 
-# -------------------------------
-# Virtual environments
-# -------------------------------
-venv/
+# ===== Virtual Environment =====
 env/
 .venv/
-ENV/
-.ENV/
-pip-log.txt
-pip-delete-this-directory.txt
+venv/
 
-# -------------------------------
-# Jupyter Notebook
-# -------------------------------
-.ipynb_checkpoints/
-*.ipynb
-
-# -------------------------------
-# PyTorch / TensorFlow / ML
-# -------------------------------
+# ===== PyTorch / ML =====
 *.pt
 *.pth
-*.ckpt
-*.h5
-*.tflite
 *.onnx
-*.pb
-*.weights
+*.ckpt
+*.bin
 
-# Logs, TensorBoard
-logs/
-tb_logs/
-events.out.tfevents.*
-
-# -------------------------------
-# YOLO / ultralytics
-# -------------------------------
-runs/
-results/
-weights/
-*.yaml  # Nếu chứa config nhạy cảm
-*.txt   # nếu chứa list paths lớn hoặc annotations tạm
-
-# -------------------------------
-# Datasets / large files
-# -------------------------------
-data/
-dataset/
-*.csv
-*.json
-*.zip
-*.tar
-*.tar.gz
-*.tgz
-*.pickle
-*.pkl
-*.npz
-*.npy
-*.hdf5
-*.db
-
-# -------------------------------
-# OS / editor files
-# -------------------------------
-.DS_Store
-Thumbs.db
-desktop.ini
-*.swp
-*.swo
-.idea/
-.vscode/
-*.sublime-project
-*.sublime-workspace
-
-# -------------------------------
-# Misc
-# -------------------------------
+# ===== Logs & cache =====
 *.log
-*.tmp
-*.bak
+.cache/
+.mypy_cache/
+.pytest_cache/
 
-.env
-.env.*
+# ===== MacOS =====
+.DS_Store
+
+# ===== Node / Next =====
+node_modules/
+.next/
+out/
+
+# ===== Build / dist =====
+build/
+dist/
+
+# ===== IDE =====
+.vscode/
+.idea/
+
+# ===== Data & output =====
+data/raw/
+data/processed/
+outputs/

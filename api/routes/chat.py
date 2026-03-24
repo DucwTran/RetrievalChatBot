@@ -78,20 +78,11 @@ async def chat_endpoint(request: ChatRequest, req: Request):
     logger.info(f"Session {session_id}: Received question: {question}")
     
     try:
-        # Get BM25 and Reranker from startup
-        bm25 = get_bm25()
         reranker = get_reranker()
-        
-        if bm25 is None:
-            logger.error(f"Session {session_id}: BM25 not initialized!")
-            raise HTTPException(
-                status_code=503,
-                detail="Hệ thống chưa sẵn sàng. Vui lòng thử lại sau."
-            )
-        
+
         # Step 1: Hybrid retrieval (Dense + BM25)
         logger.info(f"Session {session_id}: Running hybrid retrieval...")
-        documents = hybrid_retrieve(question, bm25)
+        documents = hybrid_retrieve(question)
         
         if not documents:
             logger.warning(f"Session {session_id}: No documents retrieved")
