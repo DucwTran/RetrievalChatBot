@@ -8,7 +8,7 @@ settings = load_settings()
 logger = logging.getLogger("ingestion")
 
 def chunk_architecture_types():
-    file_path = Path(settings["data"]["processed_dir"]) /  "architectureTypes.json"
+    file_path = Path(settings["data"]["processed_dir"]) / "architectureTypes.json"
 
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
@@ -18,13 +18,14 @@ def chunk_architecture_types():
         with open(file_path, "r", encoding="utf-8") as file:
             architecture_types = json.load(file)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format {e}")
+        logger.error(f"Invalid JSON format: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
         return []
 
     if isinstance(architecture_types, dict):
-        architecture_types = [architecture_types] # convert to list
+        architecture_types = [architecture_types]
 
     if not isinstance(architecture_types, list):
         logger.error("Architecture types data is not a list")
@@ -43,34 +44,39 @@ def chunk_architecture_types():
 
         architecture_id = architecture_type.get("id")
         architecture_name = architecture_type.get("name", "")
-        architecture_slug = architecture_type.get("slug")
-        architecture_description = architecture_type.get("description")
+        architecture_slug = architecture_type.get("slug", "")
+        architecture_description = architecture_type.get("description", "")
         architecture_image = architecture_type.get("imageUrl", "")
 
-        if not architecture_name or not isinstance(architecture_name, str):
-            logger.warning(f"Skipping architecture type with invalid name at index {idx}")
+        if not isinstance(architecture_name, str) or not architecture_name:
+            logger.warning(f"Invalid architecture name at index {idx}")
             continue
 
-        if not architecture_image or not isinstance(architecture_image, str):
-            logger.warning(f"Skipping architecture type with invalid image URL at index {idx}")
-            continue
+        if not isinstance(architecture_image, str):
+            architecture_image = ""
+
+        if not isinstance(architecture_description, str):
+            architecture_description = ""
 
         text_parts = [
             f"Loại kiến trúc: {architecture_name}",
-            f"Hình ảnh minh họa kiến trúc {architecture_name}: {architecture_image}"
+            f"Mô tả: {architecture_description}",
+            f"Hình ảnh minh họa: {architecture_image}",
         ]
 
+        text = "\n".join([t for t in text_parts if t.strip()])
+
         chunks.append({
-            "type": "architecture_type",
-            "text": "\n".join(text_parts),
+            "text": text,
             "metadata": {
+                "type": "architecture_type",
+                "source": "architectureTypes.json",
                 "architecture_id": architecture_id,
                 "architecture_name": architecture_name,
                 "architecture_slug": architecture_slug,
                 "architecture_description": architecture_description,
-                "architecture_image": architecture_image
-            },
-            "source": "architectureTypes.json",
+                "architecture_image": architecture_image,
+            }
         })
 
     if not chunks:

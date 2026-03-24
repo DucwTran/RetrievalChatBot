@@ -8,7 +8,7 @@ settings = load_settings()
 logger = logging.getLogger("ingestion")
 
 def chunk_project_categories():
-    file_path = Path(settings["data"]["processed_dir"]) / "projectCategories.js" # Lưu ý: Trong ảnh là .js nhưng thường sẽ là .json
+    file_path = Path(settings["data"]["processed_dir"]) / "projectCategories.json"
 
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
@@ -18,7 +18,8 @@ def chunk_project_categories():
         with open(file_path, "r", encoding="utf-8") as file:
             project_categories = json.load(file)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format {e}")
+        logger.error(f"Invalid JSON format: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
         return []
@@ -43,22 +44,29 @@ def chunk_project_categories():
 
         category_id = project_category.get("id")
         category_name = project_category.get("name", "")
-        category_slug = project_category.get("slug")
-        category_description = project_category.get("description")
+        category_slug = project_category.get("slug", "")
+        category_description = project_category.get("description", "")
 
-        if not category_name or not isinstance(category_name, str):
-            logger.warning(f"Skipping project category with invalid name at index {idx}")
+        if not isinstance(category_name, str) or not category_name:
+            logger.warning(f"Invalid category name at index {idx}")
             continue
 
+        if not isinstance(category_description, str):
+            category_description = ""
+
         text_parts = [
-            f"Loại dự án: {category_name}",
+            f"Danh mục dự án: {category_name}",
+            f"Mô tả: {category_description}",
+            f"Đây là loại dự án thuộc nhóm {category_name}",
         ]
 
+        text = "\n".join([t for t in text_parts if t.strip()])
+
         chunks.append({
-            "text": "\n".join(text_parts),
+            "text": text,
             "metadata": {
                 "type": "project_category",
-                "source": "projectCategories.json",
+                "source": file_path.name,
                 "category_id": category_id,
                 "category_name": category_name,
                 "category_slug": category_slug,

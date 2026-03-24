@@ -1,4 +1,6 @@
 PyYAML
 beautifulsoup4
-transformers
+sentence-transformers
 qdrant-client
+vectorstore
+ollama

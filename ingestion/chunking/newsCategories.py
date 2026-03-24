@@ -18,7 +18,8 @@ def chunk_news_categories():
         with open(file_path, "r", encoding="utf-8") as file:
             news_categories = json.load(file)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format {e}")
+        logger.error(f"Invalid JSON format: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
         return []
@@ -43,19 +44,26 @@ def chunk_news_categories():
 
         category_id = news_category.get("id")
         category_name = news_category.get("name", "")
-        category_slug = news_category.get("slug")
-        category_description = news_category.get("description")
+        category_slug = news_category.get("slug", "")
+        category_description = news_category.get("description", "")
 
-        if not category_name or not isinstance(category_name, str):
-            logger.warning(f"Skipping news category with invalid name at index {idx}")
+        if not isinstance(category_name, str) or not category_name:
+            logger.warning(f"Invalid category name at index {idx}")
             continue
 
+        if not isinstance(category_description, str):
+            category_description = ""
+
         text_parts = [
-            f"Loại tin tức: {category_name}",
+            f"Danh mục tin tức: {category_name}",
+            f"Mô tả: {category_description}",
+            f"Đây là danh mục tin tức liên quan đến {category_name}",
         ]
 
+        text = "\n".join([t for t in text_parts if t.strip()])
+
         chunks.append({
-            "text": "\n".join(text_parts),
+            "text": text,
             "metadata": {
                 "type": "news_category",
                 "source": "newsCategories.json",

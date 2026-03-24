@@ -1,5 +1,5 @@
 import logging
-from transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 
 from core.load_settings import load_settings
 

@@ -2,14 +2,14 @@ import logging
 
 from core.setup_logging import setup_logging
 from core.load_settings import load_settings
-from chunking.architectureTypes import chunk_architecture_types
-from chunking.companyInfo import chunk_company_info
-from chunking.heroSlides import chunk_hero_slides
-from chunking.interiorStyles import chunk_interior_styles
-from chunking.newsCategories import chunk_news_categories
-from chunking.news import chunk_news
-from chunking.projectCategories import chunk_project_categories
-from chunking.projects import chunk_projects
+from ingestion.chunking.architectureTypes import chunk_architecture_types
+from ingestion.chunking.companyInfo import chunk_company_info
+from ingestion.chunking.heroSlides import chunk_hero_slides
+from ingestion.chunking.interiorStyles import chunk_interior_styles
+from ingestion.chunking.newsCategories import chunk_news_categories
+from ingestion.chunking.news import chunk_news
+from ingestion.chunking.projectCategories import chunk_project_categories
+from ingestion.chunking.projects import chunk_projects
 from vectorstore.upsert import upsert_chunks
 
 setup_logging()

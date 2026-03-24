@@ -19,7 +19,8 @@ def chunk_hero_slides():
             hero_slides = json.load(file)
             logger.info(f"Loaded {len(hero_slides)} hero slides from {file_path}")
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format {e}")
+        logger.error(f"Invalid JSON format: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error reading {file_path}: {e}")
         return []
@@ -42,30 +43,33 @@ def chunk_hero_slides():
             logger.warning(f"Skipping invalid slide at index {idx}")
             continue
 
-        company_title = slide.get("title", "")
-        if not company_title or not isinstance(company_title, str):
-            logger.warning(f"Skipping slide at index {idx} due to missing or invalid title")
+        slide_title = slide.get("title", "")
+        slide_subtitle = slide.get("subtitle", "")
+        slide_description = slide.get("description", "")
+        slide_image_url = slide.get("imageUrl", "")
+
+        # chỉ bắt buộc title
+        if not isinstance(slide_title, str) or not slide_title:
+            logger.warning(f"Invalid title at index {idx}")
             continue
 
-        company_subtitle = slide.get("subtitle", "")
-        if not company_subtitle or not isinstance(company_subtitle, str):
-            logger.warning(f"Skipping slide at index {idx} due to missing or invalid subtitle")
-            continue
+        if not isinstance(slide_subtitle, str):
+            slide_subtitle = ""
 
-        company_description = slide.get("description", "")
-        if not company_description or not isinstance(company_description, str):
-            logger.warning(f"Skipping slide at index {idx} due to missing or invalid description")
-            continue
+        if not isinstance(slide_description, str):
+            slide_description = ""
 
-        company_image_url = slide.get("imageUrl")
+        if not isinstance(slide_image_url, str):
+            slide_image_url = ""
 
         text_parts = [
-            f"Lời mở đầu cho mục: {company_title} của công ty",
-            f"Phụ đề mục {company_title}: {company_subtitle}",
-            f"Mô tả chi tiết mục {company_title}: {company_description}"
+            f"Tiêu đề: {slide_title}",
+            f"Phụ đề: {slide_subtitle}",
+            f"Mô tả: {slide_description}",
+            f"Hình ảnh: {slide_image_url}",
         ]
 
-        text = "\n".join(text_parts)
+        text = "\n".join([t for t in text_parts if t.strip()])
 
         chunks.append({
             "text": text,
@@ -73,10 +77,10 @@ def chunk_hero_slides():
                 "type": "hero_slide",
                 "source": "heroSlides.json",
                 "slide_index": idx,
-                "title": company_title,
-                "subtitle": company_subtitle,
-                "description": company_description,
-                "image_url": company_image_url
+                "title": slide_title,
+                "subtitle": slide_subtitle,
+                "description": slide_description,
+                "image_url": slide_image_url
             }
         })
 

@@ -28,7 +28,7 @@ vector_database:
   port: 6333
   url: http://localhost:6333   # optional, ưu tiên url nếu có
   api_key: null               # nếu dùng Qdrant Cloud
-  collection_name: nmk_chatbot_collection
+  collection_name: chatbot_collection
   distance: cosine            # cosine | dot | euclid
   vector_size: 384 
 

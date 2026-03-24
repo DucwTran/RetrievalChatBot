@@ -17,7 +17,7 @@ VECTOR_DB_URL = VECTOR_DB_SETTINGS.get("url", f"http://{VECTOR_DB_HOST}:{VECTOR_
 VECTOR_DB_API_KEY = VECTOR_DB_SETTINGS.get("api_key", None)
 VECTOR_DB_COLLECTION = VECTOR_DB_SETTINGS.get("collection_name", "default_collection")
 VECTOR_DB_DISTANCE = VECTOR_DB_SETTINGS.get("distance", "cosine")
-VECTOR_DB_SIZE = VECTOR_DB_SETTINGS.get("size", 1024)
+VECTOR_DB_SIZE = VECTOR_DB_SETTINGS.get("vector_size", 1024)
 VECTOR_DB_TIMEOUT = VECTOR_DB_SETTINGS.get("timeout", 30)
 
 def get_qdrant_client() -> QdrantClient:

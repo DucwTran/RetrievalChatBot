@@ -24,7 +24,8 @@ def chunk_news():
             news_data = json.load(file)
         logger.info(f"Successfully loaded {len(news_data)} records from {file_path}")
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format {e}")
+        logger.error(f"Invalid JSON format: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
         return []
@@ -48,51 +49,56 @@ def chunk_news():
             continue
 
         news_title = news_item.get("title", "")
-        if not news_title or not isinstance(news_title, str):
-            logger.warning(f"Skipping news item with invalid title at index {idx}")
-            continue
-
         news_excerpt = news_item.get("excerpt", "")
-        if not news_excerpt or not isinstance(news_excerpt, str):
-            logger.warning(f"Skipping news item with invalid excerpt at index {idx}")
-            continue
-
         news_content = news_item.get("content", "")
-        if not news_content or not isinstance(news_content, str):
-            logger.warning(f"Skipping news item with invalid content at index {idx}")
+
+        if not isinstance(news_title, str) or not news_title:
+            logger.warning(f"Invalid title at index {idx}")
             continue
 
-        new_content_text = html_to_text(news_content)
-        news_image = news_item.get("thumbnailUrl")
+        if not isinstance(news_excerpt, str):
+            news_excerpt = ""
+
+        if not isinstance(news_content, str):
+            news_content = ""
+
+        news_content_text = html_to_text(news_content)
+
+        news_image = news_item.get("thumbnailUrl", "")
         news_category = news_item.get("category")
         news_category_id = news_item.get("categoryId")
         news_category_name = news_item.get("categoryName")
         news_category_slug = news_item.get("categorySlug")
 
-        text_parts = [
-            f"Tiêu đề tin tức: {news_title}",
-            f"Tóm tắt tin tức: {news_excerpt}",
-            f"Nội dung chi tiết tin tức: {new_content_text}"
-        ]
+        # ===== chunk nhỏ content =====
+        content_chunks = [news_content_text[i:i+500] for i in range(0, len(news_content_text), 500)]
 
-        text = "\n".join(text_parts)
+        for chunk_id, content_chunk in enumerate(content_chunks):
+            text_parts = [
+                f"Tiêu đề: {news_title}",
+                f"Tóm tắt: {news_excerpt}",
+                f"Nội dung: {content_chunk}",
+            ]
 
-        chunks.append({
-            "text": text,
-            "metadata": {
-                "type": "news",
-                "source": "news.json",
-                "title": news_title,
-                "excerpt": news_excerpt,
-                "image": news_image,
-                "category": news_category,              
-                "category_id": news_category_id,
-                "category_name": news_category_name,
-                "category_slug": news_category_slug,
-            }
-        })
+            text = "\n".join([t for t in text_parts if t.strip()])
+
+            chunks.append({
+                "text": text,
+                "metadata": {
+                    "type": "news",
+                    "source": "news.json",
+                    "title": news_title,
+                    "excerpt": news_excerpt,
+                    "image": news_image,
+                    "category": news_category,
+                    "category_id": news_category_id,
+                    "category_name": news_category_name,
+                    "category_slug": news_category_slug,
+                    "chunk_id": chunk_id
+                }
+            })
 
     if not chunks:
-        logger.warning("No valid architecture type chunks were created")
+        logger.warning("No valid news chunks were created")
 
     return chunks
