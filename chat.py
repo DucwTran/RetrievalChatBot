@@ -3,12 +3,16 @@ import os
 
 from core.load_settings import load_settings
 from retrieval.retriever import retrieve
+from retrieval.hybrid_retriever import hybrid_retrieve
 from llm.generator import generate_answer
+from core.startup import get_bm25, get_reranker, initialize_rag_components
 
 settings = load_settings()
 logger = logging.getLogger("chat")
 
 MAX_QUERY_LENGTH = int(os.getenv("MAX_QUERY_LENGTH", "512"))
+RERANKING_TOP_K = settings.get("reranking", {}).get("top_k", 3)
+
 
 def chat(question: str) -> str:
     if not question:
@@ -22,7 +26,9 @@ def chat(question: str) -> str:
     logger.info(f"Starting retrieval for the question: {question}.")
 
     try:
-        documents = retrieve(question)
+        reranker = get_reranker()
+        
+        documents = hybrid_retrieve(question)
         if not documents:
             logger.info("No relevant documents found.")
             return "Tôi không tìm thấy thông tin phù hợp trong dữ liệu hiện có."
@@ -32,6 +38,11 @@ def chat(question: str) -> str:
 
         # [2] Noi dung context 2
         # {Nguon: {}}
+
+        if reranker is not None:
+            documents = reranker.rerank(question, documents, top_k=RERANKING_TOP_K)
+        else: 
+            documents = documents[:RERANKING_TOP_K]
 
         context = "\n\n".join(
             f"[{i+1}] {doc.text}\n(Nguồn: {doc.metadata})"
@@ -47,6 +58,8 @@ def chat(question: str) -> str:
         return "Đã xảy ra lỗi trong quá trình truy xuất thông tin. Vui lòng thử lại sau."
     
 def main():
+    logger.info("Khởi động chatbot...")
+    initialize_rag_components()
     while True:
         question = input("Bạn: ")
         if question.lower() in {"exit", "quit"}:

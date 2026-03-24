@@ -1,68 +1,75 @@
-import logging
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import VectorParams, Distance, SparseVectorParams, SparseIndexParams
+import logging 
+import os
 
 from core.load_settings import load_settings
 
 settings = load_settings()
 logger = logging.getLogger("vector_database")
 
-_client = None
+QDRANT_CONFIG = settings["vector_database"]
+COLLECTION_NAME = QDRANT_CONFIG["collection_name"] # khong dung .get vi day la bat buoc phai co
+VECTOR_SIZE = QDRANT_CONFIG["vector_size"] # khong dung .get vi day la bat buoc phai co
+DISTANCE = QDRANT_CONFIG.get("distance", "cosine") # mac dinh la cosine, co the la "dot" hoac "euclid"
+TIMEOUT = QDRANT_CONFIG.get("timeout", 30) # Default 30 seconds
 
-VECTOR_DB_SETTINGS = settings["vector_database"]
-VECTOR_DB_TYPE = VECTOR_DB_SETTINGS.get("type", "qdrant")
-VECTOR_DB_HOST = VECTOR_DB_SETTINGS.get("host", "localhost")
-VECTOR_DB_PORT = VECTOR_DB_SETTINGS.get("port", 6333)
-VECTOR_DB_URL = VECTOR_DB_SETTINGS.get("url", f"http://{VECTOR_DB_HOST}:{VECTOR_DB_PORT}")
-VECTOR_DB_API_KEY = VECTOR_DB_SETTINGS.get("api_key", None)
-VECTOR_DB_COLLECTION = VECTOR_DB_SETTINGS.get("collection_name", "default_collection")
-VECTOR_DB_DISTANCE = VECTOR_DB_SETTINGS.get("distance", "cosine")
-VECTOR_DB_SIZE = VECTOR_DB_SETTINGS.get("vector_size", 1024)
-VECTOR_DB_TIMEOUT = VECTOR_DB_SETTINGS.get("timeout", 30)
+_client: QdrantClient | None = None
 
-def get_qdrant_client() -> QdrantClient:
+def get_qdrant_client() -> QdrantClient: # them -> QdrantClient de tra ve
     global _client
     if _client is not None:
         return _client
-
+    
     try:
-        # ket noi qua url neu co
-        if VECTOR_DB_URL:
-            logger.info("Connecting to Qdrant via URL")
+        # Neu ket noi qua URL
+        if QDRANT_CONFIG.get("url"):
+            logger.info("Connect via URL")
             _client = QdrantClient(
-                url=VECTOR_DB_URL,
-                api_key=VECTOR_DB_API_KEY,
-                timeout=VECTOR_DB_TIMEOUT
+                url=QDRANT_CONFIG["url"],
+                api_key=QDRANT_CONFIG.get("api_key"),
+                timeout=TIMEOUT
             )
         else:
-            logger.info(f"Connecting to Qdrant at {VECTOR_DB_HOST}:{VECTOR_DB_PORT}")
+            logger.info(f"Connect via: {QDRANT_CONFIG.get('host')}: {QDRANT_CONFIG.get('port')}")
+            
             _client = QdrantClient(
-                host=VECTOR_DB_HOST,
-                port=VECTOR_DB_PORT,
-                api_key=VECTOR_DB_API_KEY,
-                timeout=VECTOR_DB_TIMEOUT
+                host=QDRANT_CONFIG.get("host"),
+                port=QDRANT_CONFIG.get("port"),
+                api_key=QDRANT_CONFIG.get("api_key"),
+                timeout=TIMEOUT
             )
         
+        # Test connection
         _client.get_collections()
         logger.info("Successfully connected to Qdrant")
         return _client
+    
     except Exception as e:
         logger.error(f"Failed to connect to Qdrant: {e}")
         raise ConnectionError(f"Cannot connect to Qdrant database: {e}")
 
-def ensure_collection(client: QdrantClient):
-    existing_collections = [collection.name for collection in client.get_collections().collections]
-
-    if VECTOR_DB_COLLECTION in existing_collections:
-        logger.info(f"Collection '{VECTOR_DB_COLLECTION}' already exists.")
+def ensure_collection(client: QdrantClient): # truyen vao client de tao collection
+    existing_collection = [collection.name for collection in client.get_collections().collections]
+    
+    if COLLECTION_NAME in existing_collection:
+        logger.info(f"Collection '{COLLECTION_NAME}' already exists.")
         return
-
-    logger.info(f"Creating collection '{VECTOR_DB_COLLECTION}'...")
+    
+    logger.info(f"Creating collection '{COLLECTION_NAME}' with hybrid vectors (dense + sparse)...")
     client.recreate_collection(
-        collection_name=VECTOR_DB_COLLECTION,
-        vectors_config=VectorParams(
-            size=VECTOR_DB_SIZE,
-            distance=Distance[VECTOR_DB_DISTANCE.upper()]
-        )
+        collection_name=COLLECTION_NAME,
+        vectors_config={
+            "dense": VectorParams(
+                size=VECTOR_SIZE,
+                distance=Distance[DISTANCE.upper()]
+            )
+        },
+        sparse_vectors_config={
+            "sparse": SparseVectorParams(
+                index=SparseIndexParams()
+            )
+        }
     )
-    logger.info(f"Collection '{VECTOR_DB_COLLECTION}' created successfully.")
+    logger.info(f"Collection '{COLLECTION_NAME}' created with dense vector size {VECTOR_SIZE}, distance '{DISTANCE}', and sparse vectors.")
+    

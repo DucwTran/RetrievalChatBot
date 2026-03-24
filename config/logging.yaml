@@ -24,32 +24,32 @@ handlers:
 # Cau hinh logger cho tung module
 loggers:
   ingestion:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
 
   embedding:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
 
   vector_database:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
 
   llm:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
 
   retrieval:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
   
   chat:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
 
