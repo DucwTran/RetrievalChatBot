@@ -1,2 +1,4 @@
 PyYAML
 beautifulsoup4
+transformers
+qdrant-client

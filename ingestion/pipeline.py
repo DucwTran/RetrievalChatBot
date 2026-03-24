@@ -11,6 +11,7 @@ from chunking.news import chunk_news
 from chunking.projectCategories import chunk_project_categories
 from chunking.projects import chunk_projects
 from vectorstore.upsert import upsert_chunks
+
 setup_logging()
 settings = load_settings()
 logger = logging.getLogger("ingestion")
