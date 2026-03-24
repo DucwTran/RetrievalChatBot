@@ -1,80 +1,82 @@
 import json
 import logging
 from pathlib import Path
+from datetime import datetime
 
 from core.load_settings import load_settings
+from ingestion.helpers.make_metadata import make_metadata
 
 settings = load_settings()
 logger = logging.getLogger("ingestion")
 
 def chunk_news_categories():
     file_path = Path(settings["data"]["processed_dir"]) / "newsCategories.json"
-
+    
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
         return []
-
+    
     try:
-        with open(file_path, "r", encoding="utf-8") as file:
-            news_categories = json.load(file)
+        with open(file_path, "r", encoding="utf-8") as f:
+            news_categories = json.load(f)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format: {e}")
+        logger.error(f"Invalid JSON format {e}")
         return []
     except Exception as e:
-        logger.error(f"Error reading file {file_path}: {e}")
+        logger.error(f"Failed to load {e}")
         return []
-
+    
     if isinstance(news_categories, dict):
         news_categories = [news_categories]
-
+        
     if not isinstance(news_categories, list):
-        logger.error("News categories data is not a list")
+        logger.error("News categories data is not a list or dict")
         return []
-
+    
     if not news_categories:
-        logger.warning("No news categories found in the data")
+        logger.warning("No news categories found in the file")
         return []
-
+    
     chunks = []
-
-    for idx, news_category in enumerate(news_categories):
-        if not isinstance(news_category, dict):
-            logger.warning(f"Skipping invalid news category at index {idx}")
+    
+    for idx, category in enumerate(news_categories):
+        if not isinstance(category, dict):
+            logger.warning(f"Category at index {idx} is not a dict")
             continue
-
-        category_id = news_category.get("id")
-        category_name = news_category.get("name", "")
-        category_slug = news_category.get("slug", "")
-        category_description = news_category.get("description", "")
-
-        if not isinstance(category_name, str) or not category_name:
-            logger.warning(f"Invalid category name at index {idx}")
+        
+        news_category_id = category.get("id")
+        news_category_name = category.get("name", "")
+        news_category_slug = category.get("slug", "")
+        
+        if not news_category_name:
+            logger.warning(f"News category at index {idx} has invalid or missing name")
             continue
-
-        if not isinstance(category_description, str):
-            category_description = ""
-
-        text_parts = [
-            f"Danh mục tin tức: {category_name}",
-            f"Mô tả: {category_description}",
-            f"Đây là danh mục tin tức liên quan đến {category_name}",
-        ]
-
-        text = "\n".join([t for t in text_parts if t.strip()])
-
+        
+        base_metadata = {
+            "type": "news_category",
+            "news_category_id": news_category_id,
+            "news_category_name": news_category_name,
+            "news_category_slug": news_category_slug, 
+            "source": "newsCategories.json",
+            "created_at": datetime.utcnow().isoformat(),
+            "language": "vi",
+        }
+        
+        text = (
+            f"Tên danh mục tin tức: {news_category_name}"
+            f"Danh mục tin tức này được sử dụng để phân loại các bài viết liên quan đến {news_category_name}."
+        )
+        
         chunks.append({
             "text": text,
-            "metadata": {
-                "type": "news_category",
-                "source": "newsCategories.json",
-                "category_id": category_id,
-                "category_name": category_name,
-                "category_slug": category_slug,
-                "category_description": category_description,
-            }
+            "metadata": make_metadata(
+                base_metadata,
+                chunk_type="definition",
+                priority=3
+            )
         })
-
+    
     if not chunks:
         logger.warning("No valid news category chunks were created")
-
+    
     return chunks

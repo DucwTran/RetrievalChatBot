@@ -1,104 +1,98 @@
-import logging
 import json
+import logging
 from pathlib import Path
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 from core.load_settings import load_settings
+from ingestion.helpers.make_metadata import make_metadata
+from ingestion.helpers.split_paragraphs import split_paragraphs
 
 settings = load_settings()
 logger = logging.getLogger("ingestion")
 
-def html_to_text(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    return soup.get_text(separator=" ", strip=True)
+def html_to_text(html: str) -> str:  # Hàm nhận vào chuỗi HTML và trả về text thuần (không có tag)
+    soup = BeautifulSoup(html, "html.parser")  # Parse chuỗi HTML bằng parser mặc định của Python
+    return soup.get_text(separator=" ", strip=True)  
+    # Lấy toàn bộ text trong HTML
+    # separator=" " : chèn dấu cách giữa các đoạn text để tránh dính chữ
+    # strip=True     : loại bỏ khoảng trắng dư ở đầu và cuối chuỗi
 
 def chunk_news():
     file_path = Path(settings["data"]["processed_dir"]) / "news.json"
-
+    
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
         return []
-
+    
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            news_data = json.load(file)
-        logger.info(f"Successfully loaded {len(news_data)} records from {file_path}")
+            news = json.load(file)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format: {e}")
+        logger.error(f"Invalid JSON format {e}")
         return []
     except Exception as e:
-        logger.error(f"Error reading file {file_path}: {e}")
+        logger.error(f"Failed to load {e}")
         return []
-
-    if isinstance(news_data, dict):
-        news_data = [news_data]
-
-    if not isinstance(news_data, list):
-        logger.error("News data is not a list")
+    
+    if isinstance(news, dict):
+        news = [news]
+        
+    if not isinstance(news, list):
+        logger.error("News categories data is not a list")
         return []
-
-    if not news_data:
-        logger.warning("No news found in the data")
+    
+    if not news:
+        logger.warning("No news found in the file")
         return []
-
+    
     chunks = []
-
-    for idx, news_item in enumerate(news_data):
+    
+    for idx, news_item in enumerate(news):
         if not isinstance(news_item, dict):
-            logger.warning(f"Skipping invalid news item at index {idx}")
+            logger.warning(f"News item at index {idx} is not a dictionary")
             continue
-
-        news_title = news_item.get("title", "")
-        news_excerpt = news_item.get("excerpt", "")
-        news_content = news_item.get("content", "")
-
-        if not isinstance(news_title, str) or not news_title:
-            logger.warning(f"Invalid title at index {idx}")
-            continue
-
-        if not isinstance(news_excerpt, str):
-            news_excerpt = ""
-
-        if not isinstance(news_content, str):
-            news_content = ""
-
-        news_content_text = html_to_text(news_content)
-
-        news_image = news_item.get("thumbnailUrl", "")
-        news_category = news_item.get("category")
-        news_category_id = news_item.get("categoryId")
-        news_category_name = news_item.get("categoryName")
-        news_category_slug = news_item.get("categorySlug")
-
-        # ===== chunk nhỏ content =====
-        content_chunks = [news_content_text[i:i+500] for i in range(0, len(news_content_text), 500)]
-
-        for chunk_id, content_chunk in enumerate(content_chunks):
-            text_parts = [
-                f"Tiêu đề: {news_title}",
-                f"Tóm tắt: {news_excerpt}",
-                f"Nội dung: {content_chunk}",
-            ]
-
-            text = "\n".join([t for t in text_parts if t.strip()])
-
+        
+        news_item_id = news_item.get("id")
+        news_item_title = news_item.get("title", "")
+        news_item_slug = news_item.get("slug", "")
+        news_item_excerpt = news_item.get("excerpt", "")
+        news_item_content = news_item.get("content", "")
+        news_item_content = html_to_text(news_item_content)
+        news_item_content_split = split_paragraphs(news_item_content)
+        
+        base_metadata = {
+            "type": "news",
+            "news_item_id": news_item_id,
+            "news_item_title": news_item_title,
+            "news_item_slug": news_item_slug,
+            "source": "news.json",
+            "created_at": datetime.utcnow().isoformat(),
+            "language": "vi",
+        }
+        
+        CHUNK_PRIORITY = {
+            "overview": 1,
+            "full_content": 2,
+        }
+        
+        # Chunk overview
+        if news_item_title and news_item_excerpt:
             chunks.append({
-                "text": text,
-                "metadata": {
-                    "type": "news",
-                    "source": "news.json",
-                    "title": news_title,
-                    "excerpt": news_excerpt,
-                    "image": news_image,
-                    "category": news_category,
-                    "category_id": news_category_id,
-                    "category_name": news_category_name,
-                    "category_slug": news_category_slug,
-                    "chunk_id": chunk_id
-                }
+                "text": f'Tựa đề tin tức: {news_item_title}\nTóm tắt tin tức: {news_item_excerpt}',
+                "metadata": make_metadata(base_metadata, chunk_type="overview", priority=CHUNK_PRIORITY["overview"])
             })
-
-    if not chunks:
-        logger.warning("No valid news chunks were created")
+        
+        # Chunk full content
+        for i, part in enumerate(news_item_content_split):
+            chunks.append({
+                "text": f"Nội dung tin tức {news_item_title}: {part}",
+                "metadata": make_metadata(
+                    base_metadata, 
+                    chunk_type="full_content", 
+                    priority=CHUNK_PRIORITY["full_content"]),
+                "part_index": i
+            })
+                
 
     return chunks
