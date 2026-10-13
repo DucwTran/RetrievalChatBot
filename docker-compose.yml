@@ -1,20 +1,70 @@
-version: "1.0.0"
-
 services:
   qdrant:
-    image: qdrant/qdrant:latest # version moi nhat
-    container_name: qdrant
-    ports:
-      - "6333:6333" # Rest API port
-      - "6334:6334" # Web UI port
+    image: qdrant/qdrant:v1.15.3
     volumes:
-      - ./qdrant_storage:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    # healthcheck:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
-    networks:
-      - chatbot-network
+    networks: [chatbot-network]
+
+  ollama:
+    image: ollama/ollama:0.12.6
+    volumes:
+      - ollama_models:/root/.ollama
+    # No published port: only the api container needs it, and the host may already run its own Ollama on 11434.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks: [chatbot-network]
+    # NVIDIA GPU: run with `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d`
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      # Inside the compose network, services are reached by name, not localhost.
+      QDRANT__URL: http://qdrant:6333
+      QDRANT__PATH: ""
+      # The api image is CPU-only; a host .env may say "cuda" for local runs.
+      EMBEDDING__DEVICE: cpu
+      RERANK__DEVICE: cpu
+      LLM__BASE_URL: http://ollama:11434
+      API__CORS_ORIGINS: '["http://localhost:8080"]'
+    volumes:
+      - hf_cache:/models
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [chatbot-network]
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks: [chatbot-network]
+
+volumes:
+  qdrant_data:
+  ollama_models:
+  hf_cache:
 
 networks:
   chatbot-network:

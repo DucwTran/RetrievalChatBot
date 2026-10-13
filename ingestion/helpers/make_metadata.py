@@ -1,9 +1,3 @@
-
-import uuid
-
-def make_metadata(base, **extra):
-    return {
-        **base,
-        "chunk_id": str(uuid.uuid4()),
-        **extra
-    }
+def make_metadata(base: dict, **extra) -> dict:
+    """Merge shared record metadata with chunk-specific fields."""
+    return {**base, **extra}

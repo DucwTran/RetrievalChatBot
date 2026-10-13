@@ -1,69 +1,49 @@
 import logging
 import time
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from core.setup_logging import setup_logging
-from core.startup import initialize_rag_components
 
-setup_logging()
+from api.bootstrap import build_container
+from api.errors import register_error_handlers
+from api.routes import chat, health
+from core.config import get_settings
+from core.setup_logging import setup_logging
+
 logger = logging.getLogger("api")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
-    # Startup
-    logger.info("Starting NMK Chatbot API...")
-    try:
-        initialize_rag_components()
-        logger.info("Application startup completed")
-    except Exception as e:
-        logger.error(f"Startup failed: {e}", exc_info=True)
-    
+    settings = get_settings()
+    setup_logging()
+    app.state.container = build_container(settings)  # any failure aborts startup
     yield
-    
-    # Shutdown
-    logger.info("Shutting down NMK Chatbot API...")
 
-app = FastAPI(
-    title="NMK Chatbot API",
-    description="API for NMK Architecture Chatbot",
-    version="1.0.0",
-    lifespan=lifespan
-)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(title="RAG Chatbot API", version="2.0.0", lifespan=lifespan)
 
-@app.middleware("http")
-async def track_response_time(request: Request, call_next):
-    """Track response time for all requests"""
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    response.headers["X-Response-Time"] = f"{duration:.3f}s"
-    logger.info(f"{request.method} {request.url.path} took {duration:.3f}s")
-    return response
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.api.cors_origins,
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["Content-Type"],
+    )
 
-from api.routes import chat_router, health_router
+    @app.middleware("http")
+    async def response_time(request: Request, call_next):
+        start = time.perf_counter()
+        response = await call_next(request)
+        response.headers["X-Response-Time"] = f"{(time.perf_counter() - start) * 1000:.0f}ms"
+        return response
 
-app.include_router(health_router, tags=["health"])
-app.include_router(chat_router, prefix="/api", tags=["chat"])
+    register_error_handlers(app)
+    app.include_router(chat.router)
+    app.include_router(health.router)
+    return app
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "NMK Chatbot API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload=True)
+app = create_app()

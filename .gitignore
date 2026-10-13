@@ -31,7 +31,7 @@ venv/
 # ===== MacOS =====
 .DS_Store
 
-# ===== Node / Next =====
+# ===== Node =====
 node_modules/
 .next/
 out/
@@ -48,3 +48,9 @@ dist/
 data/raw/
 data/processed/
 outputs/
+# ===== Runtime data =====
+qdrant_storage/
+logs/
+evaluation/results/
+qdrant_local/
+.env.bak

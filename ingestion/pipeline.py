@@ -1,35 +1,35 @@
 import logging
 
-from core.setup_logging import setup_logging
-from core.load_settings import load_settings
+from core.schema import Chunk
 from ingestion.chunking.architectureTypes import chunk_architecture_types
 from ingestion.chunking.companyInfo import chunk_company_info
 from ingestion.chunking.interiorStyles import chunk_interior_styles
-from ingestion.chunking.newsCategories import chunk_news_categories
 from ingestion.chunking.news import chunk_news
+from ingestion.chunking.newsCategories import chunk_news_categories
 from ingestion.chunking.projectCategories import chunk_project_categories
 from ingestion.chunking.projects import chunk_projects
-from vectorstore.upsert import upsert_chunks
+from ingestion.helpers.ids import chunk_id
 
-setup_logging()
-settings = load_settings()
 logger = logging.getLogger("ingestion")
 
-def upload_chunks():
-    all_chunks = []
+CHUNKERS = [
+    chunk_architecture_types,
+    chunk_company_info,
+    chunk_interior_styles,
+    chunk_news_categories,
+    chunk_news,
+    chunk_project_categories,
+    chunk_projects,
+]
 
-    all_chunks.extend(chunk_architecture_types())
-    all_chunks.extend(chunk_company_info())
-    all_chunks.extend(chunk_interior_styles())
-    all_chunks.extend(chunk_news_categories())
-    all_chunks.extend(chunk_news())
-    all_chunks.extend(chunk_project_categories())
-    all_chunks.extend(chunk_projects())
-    logger.info(f"Total chunks created: {len(all_chunks)}")
 
-    upsert_chunks(all_chunks)
-    logger.info("All chunks have been uploaded to the vector store")
-
-if __name__ =="__main__":
-    upload_chunks()
-
+def build_chunks() -> list[Chunk]:
+    """Run every chunker and return deduplicated chunks with deterministic ids."""
+    chunks: dict[str, Chunk] = {}
+    for chunker in CHUNKERS:
+        for raw in chunker():
+            meta = raw["metadata"]
+            cid = chunk_id(meta.get("source", ""), meta.get("chunk_type", ""), raw["text"])
+            chunks[cid] = Chunk(id=cid, text=raw["text"], metadata={**meta, "chunk_id": cid})
+    logger.info(f"Built {len(chunks)} chunks")
+    return list(chunks.values())

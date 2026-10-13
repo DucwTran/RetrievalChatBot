@@ -1,0 +1,14 @@
+.git
+.env
+.venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+logs
+qdrant_storage
+qdrant_local
+frontend
+tests
+evaluation/results
+data

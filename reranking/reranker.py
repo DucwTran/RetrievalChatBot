@@ -1,36 +1,46 @@
-
 import logging
+from dataclasses import replace
+from typing import Protocol
 
-from core.schema import RetrievedDocument
+from core.config import RerankSettings
+from core.schema import Hit
 from reranking.base import BaseReranker
-from reranking.models.cross_encoder import CrossEncoderModel
 
 logger = logging.getLogger("reranking")
 
+
+class PairScorer(Protocol):
+    def score_batch(self, pairs: list[tuple[str, str]]) -> list[float]: ...
+
+
 class CrossEncoderReranker(BaseReranker):
-    def __init__(self, model: CrossEncoderModel):
-        self.model = model
+    """Scores every (query, chunk) pair jointly; slower but far more precise than retrieval."""
 
-    def rerank(self, query: str, documents: list[RetrievedDocument], top_k: int | None = None) -> list[RetrievedDocument]:
-        if not documents:
+    def __init__(self, scorer: PairScorer):
+        self._scorer = scorer
+
+    def rerank(self, query: str, hits: list[Hit], top_k: int) -> list[Hit]:
+        if not hits:
             return []
+        scores = self._scorer.score_batch([(query, h.text) for h in hits])
+        scored = [
+            replace(h, metadata={**h.metadata, "rerank_score": float(s)})
+            for h, s in zip(hits, scores, strict=True)
+        ]
+        scored.sort(key=lambda h: h.metadata["rerank_score"], reverse=True)
+        return scored[:top_k]
 
-        # 1. Tạo cặp (query, document)
-        pairs = [(query, doc.text) for doc in documents]
 
-        # 2. Batch scoring
-        scores = self.model.score_batch(pairs)
+class PassthroughReranker(BaseReranker):
+    """Keeps retrieval order; used when reranking is disabled (e.g. for ablation)."""
 
-        # 3. Gắn score vào metadata
-        for doc, score in zip(documents, scores):
-            doc.metadata["rerank_score"] = float(score)
+    def rerank(self, query: str, hits: list[Hit], top_k: int) -> list[Hit]:
+        return hits[:top_k]
 
-        # 4. Sort lại
-        documents.sort(key=lambda d: d.metadata["rerank_score"], reverse=True)
 
-        # 5. Cắt top_k nếu cần
-        if top_k is not None:
-            documents = documents[:top_k]
+def build_reranker(cfg: RerankSettings) -> BaseReranker:
+    if not cfg.enabled:
+        return PassthroughReranker()
+    from reranking.models.cross_encoder import CrossEncoderModel
 
-        logger.info(f"Reranked {len(documents)} documents")
-        return documents
+    return CrossEncoderReranker(CrossEncoderModel(cfg.model, cfg.device, cfg.max_length))

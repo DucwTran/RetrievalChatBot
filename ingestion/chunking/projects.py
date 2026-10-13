@@ -3,20 +3,20 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-from core.load_settings import load_settings
+from core.config import get_settings
 from ingestion.helpers.make_metadata import make_metadata
 from ingestion.helpers.split_paragraphs import split_paragraphs
 
-settings = load_settings()
+settings = get_settings()
 logger = logging.getLogger("ingestion")
 
 def chunk_projects():
-    file_path = Path(settings["data"]["processed_dir"]) / "projects.json"
-    
+    file_path = Path(settings.data.processed_dir) / "projects.json"
+
     if not file_path.exists():
         logger.error(f"File not found: {file_path}")
         return []
-    
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             projects = json.load(f)
@@ -25,26 +25,26 @@ def chunk_projects():
         return []
     except Exception as e:
         logger.error(f"Failed to load {e}")
-        return []   
-    
+        return []
+
     if isinstance(projects, dict):
         projects = [projects]
-        
+
     if not isinstance(projects, list):
         logger.error("Projects data is not a list")
         return []
-    
+
     if not projects:
         logger.warning("No projects found in the file")
         return []
-    
+
     chunks = []
-    
+
     for idx, project in enumerate(projects):
         if not isinstance(project, dict):
             logger.warning(f"Project at index {idx} is not a dict")
             continue
-        
+
         project_id = project.get("id")
         project_name = project.get("title", "").strip()
         project_slug = project.get("slug", "")
@@ -66,7 +66,7 @@ def chunk_projects():
             "created_at": datetime.utcnow().isoformat(),
             "language": "vi",
         }
-        
+
         CHUNK_PRIORITY = {
             "overview": 1,
             "description": 2,
@@ -75,14 +75,14 @@ def chunk_projects():
             "specs": 5,
             "media": 6
         }
-        
+
         # 1/ Overview chunk
         if project_name:
             chunks.append({
                 "text": f"Dự án {project_name}.",
                 "metadata": make_metadata(base_metadata, chunk_type="overview", priority=CHUNK_PRIORITY["overview"])
             })
-        
+
         # 2/ Description chunk
         for i, part in enumerate(split_paragraphs(project_description)):
             chunks.append({
@@ -164,5 +164,5 @@ def chunk_projects():
                     priority=CHUNK_PRIORITY["media"]
                 )
             })
-            
+
     return chunks
